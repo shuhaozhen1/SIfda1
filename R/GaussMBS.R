@@ -63,7 +63,7 @@ confidence_band <- function(data_list, time_points, bs_times=1000, kernel='Epa',
 
 
   if(is.null(h)){
-    h <- 1.2*bw.bcv(totalt)
+    h <- bw.bcv(totalt)
   } else {
     h <- h
   }
@@ -74,14 +74,13 @@ confidence_band <- function(data_list, time_points, bs_times=1000, kernel='Epa',
   beta_est <- localp_VCM_tpoints(data_list = data_list, time_points = time_points, kernel = kernel,
                                  d=d,h=h)[seq(from=1, by=d+1, length.out= p) ,]
 
-  bs <- gaussmbs(data_list = data_list, time_points = time_points, bs_times=bs_times, kernel=kernel, d=d, h =0.8*h)
+  bs <- gaussmbs(data_list = data_list, time_points = time_points, bs_times=bs_times, kernel=kernel, d=d, h =0.6*h)
 
   scb_low <- beta_est - bs$hat_q * bs$est_sd / sqrt(n)
 
   scb_up <- beta_est + bs$hat_q * bs$est_sd / sqrt(n)
 
-  return(list(scb_low=scb_low, scb_up =scb_up))
+  return(list(beta_est=beta_est,scb_low=scb_low, scb_up =scb_up))
 }
 
-confidence_band(VCMdata, time_points = c(0.1,0.2,0.3,0.5))
 

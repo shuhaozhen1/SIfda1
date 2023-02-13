@@ -101,7 +101,7 @@ centerdata_VCM <- function(data_list, kernel = 'Epa', d= 1, h = 0.1 ) {
 
   totaldata <- Reduce(rbind,data_list)
 
-  est_values <- t(localp_VCM_tpoints(data_list = data_list, time_points = totaldata[,1], kernel= kernel, d=d, h=d))
+  est_values <- t(localp_VCM_tpoints(data_list = data_list, time_points = totaldata[,1], kernel= kernel, d=d, h=h))
 
   est_0_order <- est_values[, seq(from=1, by=d+1, length.out= ncol(totaldata)-2)]
 
