@@ -1,80 +1,3 @@
-mean_list <- list()
-mean_list[[1]] <- function(x) {sin(pi*x)}
-mean_list[[2]] <- function(x) {cos(2*pi*x)}
-mean_list[[3]] <- function(x) {-cos(2*pi*x)}
-mean_list[[4]] <- function(x) {cos(pi*x)}
-mean_list[[5]] <- function(x) {cos(pi*x)}
-
-FDAdata <- generate_random_process_values_error(n=100,m=5, p=5, mean_list =mean_list,
-                                     covariancef = function(x,y){exp(-abs(x-y))},
-                                     distribution = 'normal', depend = F, trans = F, snr=5)
-
-
-
-
-VCMdata <- VCM_process_values_error(n=100, m=5, p = 5, domain=c(0,1), mean_list = rep(list(function(x) {0*x}), 5),
-                         coef_list=coef_list , covariancef =function(x,y){exp(-abs(x-y))},
-                         distribution = 'normal', snr = 5,  depend = T,
-                         trans = T, transfmatrix = NULL, num_basis = 1000)
-
-# Function to generate a design matrix with polynomial basis functions of t
-generate_t_design_matrix <- function(X, t, d=1) {
-
-  # Generate a vector k with values 0, ..., d
-  k <- 0:d
-
-  # Apply the function to each value in k
-  t_design <- sapply(k, function(i){
-    # Calculate (X - t)^i
-    (X-t)^i
-  })
-
-  # Return the design matrix
-  return(t_design)
-}
-
-
-#' Generates the XT design matrix
-#'
-#' @param X a matrix with n observations and p features
-#' @param t a time point
-#' @param d the degree of the polynomial
-#'
-#' @return the XT design matrix
-
-generate_XT_design_matrix <- function(X, t, d=1) {
-
-  # Calculate (X - t)^0, (X - t)^1, ..., (X - t)^d
-  t_design <- generate_t_design_matrix(X[,1],t,d = d)
-
-  # Loop through the columns of X, excluding the first and last columns
-  p <- 1:(ncol(X) - 2)
-
-  # Calculate X[,1] * (X - t)^0, X[,2] * (X - t)^1, ..., X[,p] * (X - t)^d
-  XT_design <-  Reduce(cbind,lapply(p, function(i){
-    # Calculate X[,i+1] * (X - t)^i
-    t_design * X[,i+1]
-  }) )
-
-  return(XT_design)
-}
-
-# Define the Epanechnikov kernel function
-Epa_K <- function(x) {
-  # Use sapply to apply the function to each element of x
-  y <- sapply(x, function(xi) {
-    # Check if xi is within [-c, c]
-    if (abs(xi) <= 1) {
-      # If xi is within [-c, c], return the Epanechnikov kernel value
-      return(0.75 * (1 - xi^2))
-    } else {
-      # If xi is outside [-c, c], return 0
-      return(0)
-    }
-  })
-  return(y)
-}
-
 
 i_localp_VCM_t <- function(data, data_list , t, kernel='Epa', d=1, h=0.1){
 
@@ -108,11 +31,90 @@ i_localp_VCM_tpoints <- function(data, data_list, time_points, kernel='Epa', d=1
   return(i_estimate)
 }
 
+#' Estimate localpolynomial for VCM model.
+#'
+#' @param data_list A list of spatial data, where each element of the list is a matrix for the raw data.
+#' @param time_points A vector of time points to estimate at.
+#' @param kernel Character string specifying the type of kernel to use for the estimation. The default is "Epa".
+#' @param d Numeric value specifying the degree for local. The default is 1.
+#' @param h Numeric value specifying the bandwidth for the kernel. The default is 0.1.
+#' @return A list of estimates for individual curves.
+#' @export
 localp_VCM_i <- function(data_list, time_points, kernel = 'Epa', d=1, h=0.1) {
+
+  # Apply the i_localp_VCM_tpoints function to each element of data_list
   localp_VCM_i_estimate <- lapply(data_list, i_localp_VCM_tpoints, data_list= data_list, time_points= time_points,
-                                  kernel= 'Epa', d=d, h=h)
+                                  kernel= kernel, d=d, h=h)
+
+  # Return the list of localp estimates
   return(localp_VCM_i_estimate)
 }
 
 
-localp_VCM_i(data_list = VCMdata, time_points = c(0.1,0.2,0.3))
+
+localp_VCM_t <- function(data_list, t, kernel='Epa', d=1, h=0.1){
+
+  totaldata <- Reduce(rbind,data_list)
+
+  if(kernel == 'Epa') {
+    i_kernel <- lapply(data_list, function(data,t,h){
+    Epa_K((data[,1]-t)/h)/h/nrow(data)
+    },t=t, h=h)
+  }
+
+  total_kernel <- diag(Reduce(c, i_kernel))
+
+  total_XT_design <- generate_XT_design_matrix(totaldata, t=t, d=d)
+
+  total_denominator <- solve(t(total_XT_design) %*% total_kernel %*% total_XT_design)
+
+  total_y <- totaldata[,ncol(totaldata)]
+
+  localp_hat_d <- total_denominator %*% t(total_XT_design) %*% total_kernel %*% total_y
+
+  return(localp_hat_d)
+}
+
+
+#' Estimate local partial variogram at specified time points
+#' @param data_list A list of spatial data, where each element of the list is a matrix for the raw data.
+#' @param time_points A vector of time points to estimate at.
+#' @param kernel Character string specifying the type of kernel to use for the estimation. The default is "Epa".
+#' @param d Numeric value specifying the degree for local. The default is 1.
+#' @param h Numeric value specifying the bandwidth for the kernel. The default is 0.1.
+#' @return A vector of local partial variogram estimates at the specified time points.
+#' @export
+localp_VCM_tpoints <- function(data_list, time_points, kernel='Epa', d=1, h=0.1) {
+
+  # Apply the localp_VCM_t function to each time point in time_points
+  estimate <- sapply(time_points, localp_VCM_t,
+                     data_list = data_list, kernel=kernel, d=d, h=h)
+
+  # Return the vector of local partial variogram estimates
+  return(estimate)
+}
+
+
+centerdata_VCM <- function(data_list, kernel = 'Epa', d= 1, h = 0.1 ) {
+
+  mis <- sapply(data_list, function(x){nrow(x)})
+
+  totaldata <- Reduce(rbind,data_list)
+
+  est_values <- t(localp_VCM_tpoints(data_list = data_list, time_points = totaldata[,1], kernel= kernel, d=d, h=d))
+
+  est_0_order <- est_values[, seq(from=1, by=d+1, length.out= ncol(totaldata)-2)]
+
+  est_y <- totaldata[,2:(ncol(totaldata)-1)] * est_0_order
+
+  est_epsilon <- totaldata[,ncol(totaldata)] - rowSums(est_y)
+
+  centerdata <- totaldata
+
+  centerdata[,ncol(centerdata)]  <- est_epsilon
+
+  centerdata_list <- split_matrix_by_rows(centerdata, mis)
+
+  return(centerdata_list)
+}
+

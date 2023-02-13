@@ -11,7 +11,6 @@
 #' @examples
 #' x <- seq(0, 2 * pi, by = 0.1)
 #' fourier_basis <- generate_fourier_basis(x, 1, 10)
-#'
 generate_fourier_basis <- function(x, frequency=1, num_harmonics=100) {
   basis <- matrix(ncol = 2 * num_harmonics, nrow = length(x))
   for (i in 1:num_harmonics) {
@@ -34,7 +33,7 @@ generate_fourier_basis <- function(x, frequency=1, num_harmonics=100) {
 #
 #' @return A matrix with `length(time_points)` rows and `p+1` columns, the first column records the time points and
 #' each other column represents a realization of the random process at the specified time points.
-
+#' @export
 generate_random_process_values <- function(time_points, p=5, meanf=function(x){0},
                                            covariancef, num_basis=1000, distribution = "normal") {
 
@@ -149,6 +148,7 @@ l2moment_of_random_process <- function(meanf = function(x){0}, covariancef, doma
 #' covariancef <- function(t1, t2) {exp(-abs(t1 - t2))}
 #' values_error <- generate_random_process_values_error(n = 100, m = 1, mean_list = mean_list, covariancef = covariancef)
 #' }
+#' @export
 
 generate_random_process_values_error <- function(n, m, p = 5, domain=c(0,1), mean_list, covariancef,
                                                  distribution = 'normal', snr = 5, sig = NULL, depend = FALSE,
@@ -215,7 +215,7 @@ generate_random_process_values_error <- function(n, m, p = 5, domain=c(0,1), mea
 }
 
 
-#' Generate Random Process Values with Error
+#' Generate Random Process Values with Error For VCM
 #'
 #' The function generates random process values with error for a given number of
 #' time points and functions. The user can specify the mean function, covariance
@@ -246,6 +246,7 @@ generate_random_process_values_error <- function(n, m, p = 5, domain=c(0,1), mea
 #' covariancef <- function(t1, t2) {exp(-abs(t1 - t2))}
 #' values_error <- generate_random_process_values_error(n = 100, m = 1, mean_list = mean_list, covariancef = covariancef)
 #' }
+#' @export
 
 VCM_process_values_error <- function(n, m, p = 5, domain=c(0,1), mean_list = rep(list(function(x) {0*x}), 5),
                                      coef_list, covariancef,
